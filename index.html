@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>HackAI Pong</title>
+</head>
+<body>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+    var socket = io.connect('localhost:3000/game');
+    socket.on('player move', function(data){
+        player1.update(data);
+    });
+
+    var WIDTH=700, HEIGHT=600, pi=Math.PI;
+    var canvas, ctx, keystate;
+    var player1, player2, ball;
+    var playerDelta = 7;
+
+    player1 = {
+        x: null,
+        y: null,
+        width: 20,
+        height: 100,
+
+        update: function(direction) {
+            if (direction === "up") this.y -= playerDelta;
+            else if (direction === "down") this.y += playerDelta;
+        },
+        draw: function() {
+            ctx.fillRect(this.x, this.y, this.width, this.height)
+        }
+    };
+    player2 = {
+        x: null,
+        y: null,
+        width: 20,
+        height: 100,
+
+        update: function(direction) {
+            if (direction === "up") this.y += playerDelta;
+            else if (direction === "down") this.y -= playerDelta;
+        },
+        draw: function() {
+            ctx.fillRect(this.x, this.y, this.width, this.height)
+        }
+    };
+    ball = {
+        x: null,
+        y: null,
+        side: 20,
+
+        update: function() {},
+        draw: function() {
+            ctx.fillRect(this.x, this.y, this.side, this.side)
+        }
+    };
+
+    function main() {
+        canvas = document.createElement("canvas");
+        canvas.width = WIDTH;
+        canvas.height = HEIGHT;
+        ctx = canvas.getContext("2d");
+        document.body.appendChild(canvas);
+
+        keystate = {};
+        document.addEventListener("keydown", function (evt) {});
+        document.addEventListener("keyup", function (evt) {});
+
+        init();
+
+        var loop = function() {
+            update();
+            draw();
+
+            socket.emit('request moves', {x: ball.x, y: ball.y});
+
+            window.requestAnimationFrame(loop, canvas);
+        };
+        window.requestAnimationFrame(loop, canvas);
+    }
+
+    function init() {
+        player1.x = player1.width;
+        player1.y = (HEIGHT - player1.height) / 2;
+
+        player2.x = WIDTH - (player1.width + player2.width);
+        player2.y = (HEIGHT - player2.height) / 2;
+
+        ball.x = (WIDTH - ball.side) / 2;
+        ball.y = (HEIGHT - ball.side) / 2;
+    }
+
+    function update() {
+        ball.update();
+        player1.update();
+        player2.update();
+    }
+
+    function draw() {
+        ctx.fillRect(0, 0, WIDTH, HEIGHT);
+        ctx.save();
+        ctx.fillStyle = "#fff";
+
+        ball.draw();
+        player1.draw();
+        player2.draw();
+
+        var w = 4;
+        var x = (WIDTH - w)*0.5;
+        var y = 0;
+        var step = HEIGHT/20;
+        while (y < HEIGHT) {
+            ctx.fillRect(x, y+step*0.25, w, step*0.5);
+            y += step;
+        }
+
+        ctx.restore();
+    }
+
+    main();
+</script>
+</body>
+</html>
