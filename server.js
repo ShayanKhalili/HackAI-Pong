@@ -3,41 +3,40 @@ const app = express();
 const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 
-let connections = [];
+let player1 = null;
 let gameSocket = null;
+let gameUpdateFunction = null;
 
 app.get('/', function(req, res){
     res.sendFile(__dirname+'/index.html');
 });
 
-var game = io
-    .of('/game')
-    .on('connection', function(socket) {
+let game = io.of('/game');
+game.on('connection', function(socket) {
         console.log('game connection established');
         gameSocket = socket;
-        socket.on('request moves', function(gameData){
-            if(connections.length > 0) {
-                console.log('this works');
-                connections[0].emit('send move', gameData);
+        socket.on('request moves', function(gameData, fn){
+            if(player1 != null) {
+                player1.emit('request move', gameData);
+                gameUpdateFunction = fn;
             }
         })
     });
 
-var players = io
-    .of('/player')
-    .on('connection', function(socket){
+let players = io.of('/player');
+players.on('connection', function(socket){
     console.log('a user connected');
-    connections.push(socket);
-    socket.on('move player', function(data){
-        gameSocket.emit('player move', data);
+    if (player1 === null){
+        player1 = socket;
+        gameSocket.emit('force game loop');
+    }
+    socket.on('move', function(data){
+        gameUpdateFunction(data);
     });
     socket.on('disconnect', function(){
         console.log('user disconnected');
-        for (var i = 0; i < connections.length; i++) {
-            if (connections[i] === socket) {
-                connections.splice(i, 1);
-                break;
-            }
+        if (socket === player1) {
+            player1 = null;
         }
     });
 });

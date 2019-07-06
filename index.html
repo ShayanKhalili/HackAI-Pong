@@ -7,15 +7,20 @@
 <body>
 <script src="/socket.io/socket.io.js"></script>
 <script>
-    var socket = io.connect('localhost:3000/game');
-    socket.on('player move', function(data){
-        player1.update(data);
+    let socket = io.connect('localhost:3000/game');
+    socket.on('force game loop', function(){
+        loop();
     });
 
-    var WIDTH=700, HEIGHT=600, pi=Math.PI;
-    var canvas, ctx, keystate;
-    var player1, player2, ball;
-    var playerDelta = 7;
+    let WIDTH = 700; // canvas width
+    let HEIGHT = 600; // canvas height
+    let pi = Math.PI;
+    let canvas;
+    let ctx; // canvas context
+    let player1;
+    let player2;
+    let ball;
+    let playerDelta = 7; // number of pixels each player can move per frame
 
     player1 = {
         x: null,
@@ -24,8 +29,13 @@
         height: 100,
 
         update: function(direction) {
-            if (direction === "up") this.y -= playerDelta;
-            else if (direction === "down") this.y += playerDelta;
+            if (direction === "up") {
+                this.y = Math.max(this.y - playerDelta, 0);
+            }
+            else if (direction === "down") {
+                this.y = Math.min(this.y + playerDelta, HEIGHT - this.height);
+            }
+
         },
         draw: function() {
             ctx.fillRect(this.x, this.y, this.width, this.height)
@@ -38,8 +48,16 @@
         height: 100,
 
         update: function(direction) {
-            if (direction === "up") this.y += playerDelta;
-            else if (direction === "down") this.y -= playerDelta;
+            if (ball.y + ball.side/2 < this.y + this.height/2) this.y = Math.max(this.y - playerDelta, 0);
+            else if (ball.y + ball.side/2 > this.y + this.height/2) this.y = Math.min(this.y + playerDelta, HEIGHT - this.height);
+            /*
+            if (direction === "up") {
+                this.y = Math.max(this.y - playerDelta, 0);
+            }
+            else if (direction === "down") {
+                this.y = Math.min(this.y + playerDelta, HEIGHT - this.height);
+            }
+            */
         },
         draw: function() {
             ctx.fillRect(this.x, this.y, this.width, this.height)
@@ -48,9 +66,23 @@
     ball = {
         x: null,
         y: null,
+        vel: null,
         side: 20,
+        speed: 5,
 
-        update: function() {},
+        update: function() {
+            this.x += this.vel.x;
+            this.y += this.vel.y;
+
+            if (this.y < 0 || this.y > HEIGHT - ball.side) {
+                let offset = this.vel.y < 0 ? 0 - this.y : HEIGHT - (this.y + this.side);
+                this.y += 2*offset;
+                this.vel.y *= -1
+            }
+
+            // Axis-aligned bounding box intersect
+            //let AABBIntersect
+        },
         draw: function() {
             ctx.fillRect(this.x, this.y, this.side, this.side)
         }
@@ -63,21 +95,19 @@
         ctx = canvas.getContext("2d");
         document.body.appendChild(canvas);
 
-        keystate = {};
-        document.addEventListener("keydown", function (evt) {});
-        document.addEventListener("keyup", function (evt) {});
-
         init();
+        window.requestAnimationFrame(loop, canvas);
+    }
 
-        var loop = function() {
-            update();
-            draw();
+    function loop() {
+        update();
+        draw();
 
-            socket.emit('request moves', {x: ball.x, y: ball.y});
+        socket.emit('request moves', {x: ball.x, y: ball.y}, function(dirP1){
+            player1.update(dirP1);
 
             window.requestAnimationFrame(loop, canvas);
-        };
-        window.requestAnimationFrame(loop, canvas);
+        });
     }
 
     function init() {
@@ -89,6 +119,11 @@
 
         ball.x = (WIDTH - ball.side) / 2;
         ball.y = (HEIGHT - ball.side) / 2;
+
+        ball.vel = {
+            x: 0,
+            y: ball.speed
+        }
     }
 
     function update() {
