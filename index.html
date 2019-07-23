@@ -38,7 +38,7 @@
 
         },
         draw: function() {
-            ctx.fillRect(this.x, this.y, this.width, this.height)
+            ctx.fillRect(this.x, this.y, this.width, this.height);
         }
     };
     player2 = {
@@ -48,16 +48,14 @@
         height: 100,
 
         update: function(direction) {
-            if (ball.y + ball.side/2 < this.y + this.height/2) this.y = Math.max(this.y - playerDelta, 0);
-            else if (ball.y + ball.side/2 > this.y + this.height/2) this.y = Math.min(this.y + playerDelta, HEIGHT - this.height);
-            /*
+            // if (ball.y + ball.side/2 < this.y + this.height/2) this.y = Math.max(this.y - playerDelta, 0);
+            // else if (ball.y + ball.side/2 > this.y + this.height/2) this.y = Math.min(this.y + playerDelta, HEIGHT - this.height);
             if (direction === "up") {
                 this.y = Math.max(this.y - playerDelta, 0);
             }
             else if (direction === "down") {
                 this.y = Math.min(this.y + playerDelta, HEIGHT - this.height);
             }
-            */
         },
         draw: function() {
             ctx.fillRect(this.x, this.y, this.width, this.height)
@@ -69,6 +67,7 @@
         vel: null,
         side: 20,
         speed: 5,
+        speed_factor: 1.2,
 
         update: function() {
             this.x += this.vel.x;
@@ -80,8 +79,28 @@
                 this.vel.y *= -1
             }
 
-            // Axis-aligned bounding box intersect
-            //let AABBIntersect
+            // Axis-aligned bounding box intersect function. Returns boolean dictating whether two rectangles are intersecting
+            let AABBIntersect = function(ax, ay, aw, ah, bx, by, bw, bh) {
+                return ax < bx + bw && ay < by + bh && bx < ax + aw && by < ay + ah;
+            };
+
+            // If the ball is going left, check against left paddle, if the ball is going right, check against right paddle.
+            let paddle = this.vel.x < 0 ? player1 : player2
+            if (AABBIntersect(paddle.x, paddle.y, paddle.width, paddle.height, this.x, this.y, this.side, this.side)) {
+                this.x = paddle === player1 ? player1.x + player1.width : player2.x - this.side;
+                let norm_height = (this.y + this.side - paddle.y) / (paddle.height + this.side);
+                // 2 * norm_height - 1 gives a value between -1 and 1, therefore ref_angle will be set to an angle between
+                // -pi/4 and pi/4.
+                let ref_angle = 0.25 * pi * (2 * norm_height - 1);
+                //let smash = Math.abs(ref_angle) > 0.2 * pi ? 10 : 1;
+                this.vel.x = (paddle === player1 ? 1 : -1) * this.speed * Math.cos(ref_angle);
+                this.vel.y = this.speed * Math.sin(ref_angle);
+                this.speed *= this.speed_factor;
+            }
+
+            if (this.x < 0 || this.x > WIDTH - this.side) {
+                init();
+            }
         },
         draw: function() {
             ctx.fillRect(this.x, this.y, this.side, this.side)
@@ -103,8 +122,26 @@
         update();
         draw();
 
-        socket.emit('request moves', {x: ball.x, y: ball.y}, function(dirP1){
+        data = {
+            ball: {
+                x: ball.x,
+                y: ball.y
+            },
+            player1: {
+                x: player1.x,
+                y: player1.y,
+                side: 'left'
+            },
+            player2: {
+                x: player2.x,
+                y: player2.y,
+                side: 'right'
+            }
+        }
+
+        socket.emit('request moves', data, function(dirP1, dirP2){
             player1.update(dirP1);
+            player2.update(dirP2);
 
             window.requestAnimationFrame(loop, canvas);
         });
@@ -119,10 +156,13 @@
 
         ball.x = (WIDTH - ball.side) / 2;
         ball.y = (HEIGHT - ball.side) / 2;
+        ball.speed = 5;
+
+        rand_angle = Math.random() * 2 * pi;
 
         ball.vel = {
-            x: 0,
-            y: ball.speed
+            x: ball.speed * Math.cos(rand_angle),
+            y: ball.speed * Math.sin(rand_angle)
         }
     }
 
