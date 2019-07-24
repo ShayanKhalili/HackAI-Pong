@@ -85,7 +85,7 @@
             };
 
             // If the ball is going left, check against left paddle, if the ball is going right, check against right paddle.
-            let paddle = this.vel.x < 0 ? player1 : player2
+            let paddle = this.vel.x < 0 ? player1 : player2;
             if (AABBIntersect(paddle.x, paddle.y, paddle.width, paddle.height, this.x, this.y, this.side, this.side)) {
                 this.x = paddle === player1 ? player1.x + player1.width : player2.x - this.side;
                 let norm_height = (this.y + this.side - paddle.y) / (paddle.height + this.side);

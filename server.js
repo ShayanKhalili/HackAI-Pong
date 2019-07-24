@@ -42,8 +42,8 @@ players.on('connection', function(socket){
         player2 = socket;
     }
 
-    socket.on('move', function(direction, player){
-        moves[player] = direction;
+    socket.on('move', function(data){
+        moves[data.player] = data.direction;
         console.log(moves);
         if (moves.p1 != null && moves.p2 != null) {
             gameUpdateFunction(moves.p1, moves.p2);
