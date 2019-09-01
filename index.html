@@ -9,7 +9,15 @@
 <script>
     let socket = io.connect('localhost:3000/game');
     socket.on('force game loop', function(){
-        loop();
+        window.requestAnimationFrame(loop, canvas);
+    });
+    socket.on('update', function(moves){
+        ball.update();
+        if (moves.p1 != null) player1.update(moves.p1);
+        if (moves.p2 != null) player2.update(moves.p2);
+
+        draw();
+        window.requestAnimationFrame(loop, canvas);
     });
 
     let WIDTH = 700; // canvas width
@@ -119,10 +127,7 @@
     }
 
     function loop() {
-        update();
-        draw();
-
-        data = {
+        let data = {
             ball: {
                 x: ball.x,
                 y: ball.y
@@ -137,14 +142,9 @@
                 y: player2.y,
                 side: 'right'
             }
-        }
+        };
 
-        socket.emit('request moves', data, function(dirP1, dirP2){
-            player1.update(dirP1);
-            player2.update(dirP2);
-
-            window.requestAnimationFrame(loop, canvas);
-        });
+        socket.emit('request moves', data);
     }
 
     function init() {
@@ -164,12 +164,6 @@
             x: ball.speed * Math.cos(rand_angle),
             y: ball.speed * Math.sin(rand_angle)
         }
-    }
-
-    function update() {
-        ball.update();
-        player1.update();
-        player2.update();
     }
 
     function draw() {
